@@ -149,7 +149,7 @@ CSV Outputs
       ↓
 st.py (Streamlit Dashboard)
 
-## 🧪 Why This Approach Is Strong
+Postulates:
 
 * Uses **probabilistic modeling**, not hard predictions
 * Time-aware validation (no data leakage)
