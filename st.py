@@ -12,9 +12,24 @@ import plotly.express as px
 st.set_page_config(
     page_title="Khel-Metrics | Premier League Predictor",
     page_icon="",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
+
+st.markdown("""
+<script>
+const isMobile = window.innerWidth < 768;
+window.parent.postMessage(
+    { type: "STREAMLIT_MOBILE", isMobile },
+    "*"
+);
+</script>
+""", unsafe_allow_html=True)
+
+if "is_mobile" not in st.session_state:
+    st.session_state.is_mobile = st.experimental_get_query_params().get("is_mobile", [False])[0] == "true"
+
+
 
 # Custom CSS for beautiful styling
 st.markdown("""
@@ -131,54 +146,36 @@ st.markdown("""
     .pos-2-4 { background: #4CAF50; }
     .pos-relegation { background: #f44336; }
     .pos-other { background: #9E9E9E; }
-            
-    .desktop-view {
-        display: flex !important;
-    }
-    
-    .mobile-view {
-        display: none !important;
-    }
-    
-    /* Mobile-specific styles for table */
-    @media only screen and (max-width: 768px) {
-        .desktop-view {
-            display: none !important;
+
+    @media (max-width: 768px) {
+
+        /* Stack flex rows vertically on mobile */
+        .metric-card > div {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
         }
-        
-        .mobile-view {
-            display: block !important;
+
+        /* Ensure inner flex containers also wrap */
+        .metric-card div[style*="display: flex"] {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 10px !important;
         }
-        
-        /* Smaller team logos on mobile */
-        img[width="50"] {
-            width: 25px !important;
-            height: 25px !important;
-            margin-right: 8px !important;
+
+        /* Center logos & badges on mobile */
+        .metric-card img {
+            margin-bottom: 6px;
         }
-        
-        /* More compact cards on mobile */
-        .metric-card {
-            padding: 10px !important;
-            margin: 3px 0 !important;
+
+        /* Prevent text overflow */
+        .metric-card span,
+        .metric-card div {
+            max-width: 100%;
+            word-wrap: break-word;
         }
     }
-    
-    /* Extra small phones */
-    @media only screen and (max-width: 480px) {
-        img[width="50"] {
-            width: 20px !important;
-            height: 20px !important;
-        }
-        
-        .pos-badge {
-            width: 25px !important;
-            height: 25px !important;
-            line-height: 25px !important;
-            font-size: 0.85em !important;
-        }
-    }
-    
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -248,78 +245,132 @@ def get_team_logo(team_name):
         return f'<img src="{logo_url}" width="50" style="vertical-align: middle; margin-right: 10px;">'
     return ""
 
+def render_stats_box(label, value):
+    return f"""
+    <div class="stats-box">
+        <div style="font-size: 0.9em; opacity: 0.9;">{label}</div>
+        <div style="font-size: 1.5em; font-weight: bold; margin-top: 5px;">{value}</div>
+    </div>
+    """
+
+def display_home_history(matches_df, home_team, away_team):
+    """Render recent matches for the selected home team."""
+    display_match_history(matches_df, f"{home_team} - Last 5 Matches", home_team, away_team)
+
+def display_away_history(matches_df, away_team, home_team):
+    """Render recent matches for the selected away team."""
+    display_match_history(matches_df, f"{away_team} - Last 5 Matches", away_team, home_team)
+
+
 def display_prediction_result(home_team, away_team, pred_home, pred_away, prob_home, prob_draw, prob_away):
-    """Display match prediction with beautiful formatting"""
-    
+
     st.markdown("---")
-    st.markdown("<h2 style='text-align: center; color: white;'> Match Prediction</h2>", unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns([2, 1, 2])
-    
-    with col1:
-        st.markdown(f"""
-        <div class="metric-card" style="text-align: center;">
-            {get_team_logo(home_team)}
-            <div class="team-name">{home_team}</div>
-            <div style="font-size: 3em; font-weight: bold; color: #667eea;">{pred_home:.1f}</div>
-            <div style="color: #666;">Expected Goals</div>
+    st.markdown(
+        "<h2 style='text-align: center; color: white;'>Match Prediction</h2>",
+        unsafe_allow_html=True
+    )
+
+    # ---------- CARD HTML (single source of truth) ----------
+    home_card_html = f"""
+    <div class="metric-card" style="text-align: center;">
+        {get_team_logo(home_team)}
+        <div class="team-name">{home_team}</div>
+        <div style="font-size: 3em; font-weight: bold; color: #667eea;">
+            {pred_home:.1f}
         </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div style="text-align: center; padding-top: 80px;">
-            <div style="font-size: 2em; color: white; font-weight: bold;">VS</div>
+        <div style="color: #666;">Expected Goals</div>
+    </div>
+    """
+
+    away_card_html = f"""
+    <div class="metric-card" style="text-align: center;">
+        {get_team_logo(away_team)}
+        <div class="team-name">{away_team}</div>
+        <div style="font-size: 3em; font-weight: bold; color: #764ba2;">
+            {pred_away:.1f}
         </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
-        <div class="metric-card" style="text-align: center;">
-            {get_team_logo(away_team)}
-            <div class="team-name">{away_team}</div>
-            <div style="font-size: 3em; font-weight: bold; color: #764ba2;">{pred_away:.1f}</div>
-            <div style="color: #666;">Expected Goals</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Probability visualization
-    st.markdown("<h3 style='text-align: center; color: white; margin-top: 30px;'>Match Outcome Probabilities</h3>", unsafe_allow_html=True)
-    
+        <div style="color: #666;">Expected Goals</div>
+    </div>
+    """
+
+    # ---------- RESPONSIVE LAYOUT ----------
+    if st.session_state.get("is_mobile", False):
+        # Stacked (mobile portrait)
+        st.markdown(home_card_html, unsafe_allow_html=True)
+        st.markdown(
+            "<div style='text-align:center;color:white;font-size:1.5em;margin:10px 0;'>VS</div>",
+            unsafe_allow_html=True
+        )
+        st.markdown(away_card_html, unsafe_allow_html=True)
+    else:
+        # Side-by-side (desktop / landscape)
+        col1, col2, col3 = st.columns([2, 1, 2])
+        with col1:
+            st.markdown(home_card_html, unsafe_allow_html=True)
+        with col2:
+            st.markdown(
+                "<div style='padding-top:80px;text-align:center;color:white;font-size:2em;'>VS</div>",
+                unsafe_allow_html=True
+            )
+        with col3:
+            st.markdown(away_card_html, unsafe_allow_html=True)
+
+    # ---------- PROBABILITY BAR CHART ----------
+    st.markdown(
+        "<h3 style='text-align: center; color: white; margin-top: 30px;'>"
+        "Match Outcome Probabilities</h3>",
+        unsafe_allow_html=True
+    )
+
     fig = go.Figure(data=[
         go.Bar(
             x=[f'{home_team} Win', 'Draw', f'{away_team} Win'],
-            y=[prob_home*100, prob_draw*100, prob_away*100],
+            y=[prob_home * 100, prob_draw * 100, prob_away * 100],
             marker_color=['#667eea', '#95a5a6', '#764ba2'],
-            text=[f'{prob_home*100:.1f}%', f'{prob_draw*100:.1f}%', f'{prob_away*100:.1f}%'],
-            textposition='auto',
-            textfont=dict(size=16, color='white', family='Arial Black')
+            text=[
+                f'{prob_home*100:.1f}%',
+                f'{prob_draw*100:.1f}%',
+                f'{prob_away*100:.1f}%'
+            ],
+            textposition='auto'
         )
     ])
-    
+
     fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         font=dict(color='white', size=14),
-        height=400,
+        height=300 if st.session_state.get("is_mobile", False) else 400,
         showlegend=False,
         yaxis=dict(title='Probability (%)', range=[0, 100]),
         xaxis=dict(title='')
     )
-    
-    st.plotly_chart(fig, width='stretch')
-    
-    # Most likely outcome
-    outcomes = [(prob_home, f"{home_team} Win"), (prob_draw, "Draw"), (prob_away, f"{away_team} Win")]
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ---------- MOST LIKELY OUTCOME ----------
+    outcomes = [
+        (prob_home, f"{home_team} Win"),
+        (prob_draw, "Draw"),
+        (prob_away, f"{away_team} Win")
+    ]
     most_likely = max(outcomes, key=lambda x: x[0])
-    
+
     st.markdown(f"""
-    <div class="metric-card" style="text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-        <h3> Most Likely Outcome</h3>
-        <div style="font-size: 2em; font-weight: bold; margin: 10px 0;">{most_likely[1]}</div>
-        <div style="font-size: 1.2em;">Probability: {most_likely[0]*100:.1f}%</div>
+    <div class="metric-card"
+         style="text-align: center;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;">
+        <h3>Most Likely Outcome</h3>
+        <div style="font-size: 2em; font-weight: bold; margin: 10px 0;">
+            {most_likely[1]}
+        </div>
+        <div style="font-size: 1.2em;">
+            Probability: {most_likely[0]*100:.1f}%
+        </div>
     </div>
     """, unsafe_allow_html=True)
+
 
 def display_match_history(matches_df, title, home_team, away_team):
     """Display match history in a beautiful format"""
@@ -381,6 +432,40 @@ def display_match_history(matches_df, title, home_team, away_team):
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+def get_recent_matches(historical_data, team, cutoff_date, limit=5):
+    """Return the most recent matches for a team before a cutoff date."""
+    return historical_data[
+        (
+            (historical_data["home_team"] == team)
+            | (historical_data["away_team"] == team)
+        )
+        & (historical_data["match_date"] < cutoff_date)
+    ].sort_values("match_date", ascending=False).head(limit)
+
+
+def calculate_team_stats(matches_df, team):
+    """Compute simple per-match averages for a team from recent matches."""
+    if matches_df is None or matches_df.empty:
+        return {"shots": np.nan, "possession": np.nan, "goals": np.nan}
+
+    df = matches_df.copy()
+    df["team_shots"] = np.where(
+        df["home_team"] == team, df["home_shots"], df["away_shots"]
+    )
+    df["team_possession"] = np.where(
+        df["home_team"] == team, df["home_possession"], df["away_possession"]
+    )
+    df["team_goals"] = np.where(
+        df["home_team"] == team, df["home_goals"], df["away_goals"]
+    )
+
+    return {
+        "shots": df["team_shots"].mean(),
+        "possession": df["team_possession"].mean(),
+        "goals": df["team_goals"].mean(),
+    }
+
 
 def match_prediction_page():
     """Main match prediction page"""
@@ -445,6 +530,17 @@ def match_prediction_page():
                 prob_home = 0.45
                 prob_draw = 0.25
                 prob_away = 0.30
+
+            cutoff_date = pd.to_datetime("2025-11-07")
+            home_recent = get_recent_matches(historical_data, home_team, cutoff_date)
+            away_recent = get_recent_matches(historical_data, away_team, cutoff_date)
+            home_stats = calculate_team_stats(home_recent, home_team)
+            away_stats = calculate_team_stats(away_recent, away_team)
+
+            def fmt_stat(value, suffix=""):
+                if value is None or (isinstance(value, float) and np.isnan(value)):
+                    return "N/A"
+                return f"{value:.1f}{suffix}"
             
             # Display prediction
             display_prediction_result(home_team, away_team, pred_home, pred_away, 
@@ -453,53 +549,69 @@ def match_prediction_page():
             # Match statistics
             st.markdown("<h2 style='text-align: center; color: white; margin-top: 40px;'> Additional Statistics</h2>", unsafe_allow_html=True)
             
-            col1, col2, col3, col4 = st.columns(4)
-            
             stats = [
+                (" Expected Goals (H/A)", f"{pred_home:.1f} / {pred_away:.1f}"),
+                (" Shots per game (H/A)", f"{fmt_stat(home_stats['shots'])} / {fmt_stat(away_stats['shots'])}"),
+                (" Possession (H/A)", f"{fmt_stat(home_stats['possession'], '%')} / {fmt_stat(away_stats['possession'], '%')}"),
+                (" Goals per game (H/A)", f"{fmt_stat(home_stats['goals'])} / {fmt_stat(away_stats['goals'])}")
+            ]
+
+            if st.session_state.is_mobile:
+                for label, value in stats:
+                    st.markdown(render_stats_box(label, value), unsafe_allow_html=True)
+            else:
+                stat_cols = st.columns(4)
+                for col, (label, value) in zip(stat_cols, stats):
+                    with col:
+                        st.markdown(render_stats_box(label, value), unsafe_allow_html=True)
+
+            
+            summary_stats = [
                 (" Expected Winner", max([(prob_home, home_team), (prob_draw, "Draw"), (prob_away, away_team)], key=lambda x: x[0])[1]),
                 (" Total Goals", f"{pred_home + pred_away:.1f}"),
                 (" Goal Difference", f"{abs(pred_home - pred_away):.1f}"),
                 (" Match Intensity", "High" if pred_home + pred_away > 3 else "Medium" if pred_home + pred_away > 2 else "Low")
             ]
             
-            for col, (label, value) in zip([col1, col2, col3, col4], stats):
-                with col:
+            if st.session_state.is_mobile:
+                for label, value in summary_stats:
                     st.markdown(f"""
                     <div class="stats-box">
                         <div style="font-size: 0.9em; opacity: 0.9;">{label}</div>
                         <div style="font-size: 1.5em; font-weight: bold; margin-top: 5px;">{value}</div>
                     </div>
                     """, unsafe_allow_html=True)
+            else:
+                summary_cols = st.columns(4)
+                for col, (label, value) in zip(summary_cols, summary_stats):
+                    with col:
+                        st.markdown(f"""
+                        <div class="stats-box">
+                            <div style="font-size: 0.9em; opacity: 0.9;">{label}</div>
+                            <div style="font-size: 1.5em; font-weight: bold; margin-top: 5px;">{value}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
             
             # Match history section
             st.markdown("<h2 style='text-align: center; color: white; margin-top: 40px;'> Match History</h2>", unsafe_allow_html=True)
             
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Last 5 matches for home team
-                cutoff_date = pd.to_datetime("2025-11-07")
-                home_recent = historical_data[
-                    ((historical_data['home_team'] == home_team) | 
-                    (historical_data['away_team'] == home_team)) &
-                    (historical_data['match_date'] < cutoff_date)
-                ].sort_values('match_date', ascending=False).head(5)
-                
+            if st.session_state.is_mobile:
                 st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
-                display_match_history(home_recent, f" {home_team} - Last 5 Matches", home_team, away_team)
-                st.markdown("</div>", unsafe_allow_html=True)
-            
-            with col2:
-                # Last 5 matches for away team
-                away_recent = historical_data[
-                    ((historical_data['home_team'] == away_team) | 
-                    (historical_data['away_team'] == away_team)) &
-                    (historical_data['match_date'] < cutoff_date)
-                ].sort_values('match_date', ascending=False).head(5)
-                
+                display_home_history(home_recent, home_team, away_team)
+                st.markdown("</div><br>", unsafe_allow_html=True)
                 st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
-                display_match_history(away_recent, f" {away_team} - Last 5 Matches", away_team, away_team)
+                display_away_history(away_recent, away_team, home_team)
                 st.markdown("</div>", unsafe_allow_html=True)
+            else:
+                history_cols = st.columns(2)
+                with history_cols[0]:
+                    st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
+                    display_home_history(home_recent, home_team, away_team)
+                    st.markdown("</div>", unsafe_allow_html=True)
+                with history_cols[1]:
+                    st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
+                    display_away_history(away_recent, away_team, home_team)
+                    st.markdown("</div>", unsafe_allow_html=True)
             
             # Head to head
             st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
@@ -680,7 +792,9 @@ def season_simulation_page():
             xaxis=dict(title='', tickangle=-45)
         )
         
-        st.plotly_chart(fig, width='stretch')
+        fig.update_layout(height=300 if st.session_state.is_mobile else 400)
+        st.plotly_chart(fig, use_container_width=True)
+
     
     with col2:
         # Top 4 race chart
@@ -708,7 +822,9 @@ def season_simulation_page():
             xaxis=dict(title='', tickangle=-45)
         )
         
+        fig.update_layout(height=300 if st.session_state.is_mobile else 400)
         st.plotly_chart(fig, use_container_width=True)
+
     
     # Relegation battle
     st.markdown("<h3 style='text-align: center; color: white; margin-top: 20px;'>⚠️ Relegation Battle</h3>", unsafe_allow_html=True)
@@ -735,8 +851,10 @@ def season_simulation_page():
         yaxis=dict(title='Relegation Probability (%)', gridcolor='rgba(0,0,0,0.1)'),
         xaxis=dict(title='', tickangle=-45)
     )
-    
+
+    fig.update_layout(height=300 if st.session_state.is_mobile else 400)
     st.plotly_chart(fig, use_container_width=True)
+
     
     # Points distribution
     st.markdown("<h2 style='text-align: center; color: white; margin-top: 40px;'> Expected Points Distribution</h2>", unsafe_allow_html=True)
@@ -773,7 +891,9 @@ def season_simulation_page():
     )
 
     
+    fig.update_layout(height=300 if st.session_state.is_mobile else 400)
     st.plotly_chart(fig, use_container_width=True)
+
     
     # Legend
     st.markdown("""
@@ -841,7 +961,7 @@ def season_simulation_page():
             <div>Std Dev: {most_volatile['std_points']:.2f} points</div>
         </div>
         """, unsafe_allow_html=True)
-    
+
     with col3:
         tight_race = season_simulation.iloc[3]['avg_points'] - season_simulation.iloc[0]['avg_points']
         st.markdown(f"""
@@ -853,6 +973,7 @@ def season_simulation_page():
         </div>
         """, unsafe_allow_html=True)
 
+
 def main():
     """Main application"""
     # Sidebar navigation
@@ -863,11 +984,23 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    page = st.sidebar.radio(
-        "Navigate",
-        [" Match Prediction", " Season Simulation"],
-        label_visibility="collapsed"
-    )
+    #  Responsive Navigation
+    if st.session_state.get("is_mobile", False):
+        with st.expander("☰ Menu"):
+            page = st.radio(
+                "Navigate",
+                [" Match Prediction", " Season Simulation"],
+                label_visibility="collapsed"
+            )
+    else:
+        page = st.sidebar.radio(
+            "Navigate",
+            [" Match Prediction", " Season Simulation"],
+            label_visibility="collapsed",
+            key="sidebar_nav_radio"  
+        )
+
+
     
     st.sidebar.markdown("---")
     st.sidebar.markdown("""
@@ -904,6 +1037,17 @@ def main():
         match_prediction_page()
     else:
         season_simulation_page()
+    
+    if st.session_state.is_mobile:
+        with st.expander("☰ Menu"):
+            page = st.radio("Navigate", [" Match Prediction", " Season Simulation"])
+    else:
+        page = st.sidebar.radio(
+            "Navigate",
+            [" Match Prediction", " Season Simulation"],
+            label_visibility="collapsed"
+        )
+
 
 if __name__ == "__main__":
     main()
