@@ -828,6 +828,10 @@ def main():
         <p style="font-size: 0.9em; color: #666;">
         Khel-Metrics uses advanced XGBoost models with Poisson regression 
         to predict Premier League matches and simulate entire seasons.
+        Disclaimer
+        KhelMetrics models are trained on football data available up to November 1, 2025. Predictions and insights
+        are generated using statistical and machine learning methods, and should be interpreted as analytical estimates
+        rather than guarantees. Past performance does not ensure future outcomes. 
         </p>
         <p style="font-size: 0.9em; color: #666;">
         <strong>Features:</strong><br>
