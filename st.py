@@ -147,7 +147,49 @@ st.markdown("""
     .pos-relegation { background: #f44336; }
     .pos-other { background: #9E9E9E; }
 
+    /* Compact table rows */
+    .table-row .table-metric-label {
+        font-size: 0.9em;
+        color: #000000;
+    }
+    .table-row .table-metric-value {
+        font-size: 1.4em;
+        font-weight: bold;
+    }
+    .team-name-sm {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+
     @media (max-width: 768px) {
+        .table-row {
+            padding: 8px 10px !important;
+            margin: 4px 0 !important;
+        }
+        .table-row .pos-badge {
+            width: 26px;
+            height: 26px;
+            line-height: 26px;
+            font-size: 0.9em;
+            margin-right: 8px;
+        }
+        .table-row img {
+            width: 28px !important;
+            margin-right: 6px;
+        }
+        .team-name-sm {
+            font-size: 1.05em;
+        }
+        .table-row .table-metric-label {
+            font-size: 0.75em;
+        }
+        .table-row .table-metric-value {
+            font-size: 1.1em;
+        }
+        .table-row > div {
+            gap: 8px !important;
+        }
 
         /* Stack flex rows vertically on mobile */
         .metric-card > div {
@@ -246,10 +288,15 @@ def get_team_logo(team_name):
     return ""
 
 def render_stats_box(label, value):
+    """Reusable stat pill with improved hierarchy."""
     return f"""
     <div class="stats-box">
-        <div style="font-size: 0.9em; opacity: 0.9;">{label}</div>
-        <div style="font-size: 1.5em; font-weight: bold; margin-top: 5px;">{value}</div>
+        <div style="font-size: 0.85em; letter-spacing: 0.5px; opacity: 0.85; text-transform: uppercase;">
+            {label}
+        </div>
+        <div style="font-size: 1.9em; font-weight: 800; margin-top: 6px; color: #f7f7ff;">
+            {value}
+        </div>
     </div>
     """
 
@@ -467,6 +514,25 @@ def calculate_team_stats(matches_df, team):
     }
 
 
+def compute_match_intensity(pred_home, pred_away, prob_home, prob_draw, prob_away):
+    """
+    Estimate match intensity using expected total goals and balance of outcomes.
+    - Higher combined xG -> more events.
+    - Closer win probabilities + decent draw chance -> tighter contest.
+    """
+    total_xg = pred_home + pred_away
+    max_prob = max(prob_home, prob_draw, prob_away)
+    draw_bonus = 0.3 if prob_draw >= 0.25 else 0
+    balance_bonus = 0.4 if max_prob <= 0.55 else 0.1 if max_prob <= 0.65 else 0
+    intensity_score = total_xg + draw_bonus + balance_bonus
+
+    if intensity_score >= 3.6:
+        return "High"
+    if intensity_score >= 2.6:
+        return "Medium"
+    return "Low"
+
+
 def match_prediction_page():
     """Main match prediction page"""
     st.markdown('<div class="main-header"> KHEL-METRICS</div>', unsafe_allow_html=True)
@@ -566,11 +632,12 @@ def match_prediction_page():
                         st.markdown(render_stats_box(label, value), unsafe_allow_html=True)
 
             
+            intensity = compute_match_intensity(pred_home, pred_away, prob_home, prob_draw, prob_away)
             summary_stats = [
                 (" Expected Winner", max([(prob_home, home_team), (prob_draw, "Draw"), (prob_away, away_team)], key=lambda x: x[0])[1]),
-                (" Total Goals", f"{pred_home + pred_away:.1f}"),
-                (" Goal Difference", f"{abs(pred_home - pred_away):.1f}"),
-                (" Match Intensity", "High" if pred_home + pred_away > 3 else "Medium" if pred_home + pred_away > 2 else "Low")
+                (" Total Goals (xG)", f"{pred_home + pred_away:.1f}"),
+                (" Goal Difference (xG)", f"{abs(pred_home - pred_away):.1f}"),
+                (" Match Intensity", intensity)
             ]
             
             if st.session_state.is_mobile:
@@ -732,29 +799,29 @@ def season_simulation_page():
 
         
         st.markdown(f"""
-        <div class="metric-card" style="background: {bg_gradient}; margin: 5px 0; padding: 15px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div class="metric-card table-row" style="background: {bg_gradient}; margin: 5px 0; padding: 15px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
                 <div style="display: flex; align-items: center; flex: 2;">
                     <span class="pos-badge {badge_class}">{position}</span>
                     {get_team_logo(team)}
-                    <span style="font-size: 1.3em; font-weight: bold; color: #2c3e50;">{team}</span>
+                    <span class="team-name-sm">{team}</span>
                 </div>
                 <div style="flex: 3; display: flex; justify-content: space-around; align-items: center;">
-                    <div style="text-align: center;">
-                        <div style="font-size: 0.9em; color: #000000;">Avg Points</div>
-                        <div style="font-size: 1.5em; font-weight: bold; color: #667eea;">{avg_points:.1f}</div>
+                    <div class="table-metric">
+                        <div class="table-metric-label">Avg Points</div>
+                        <div class="table-metric-value" style="color: #667eea;">{avg_points:.1f}</div>
                     </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 0.9em; color: #000000;">Win League</div>
-                        <div style="font-size: 1.5em; font-weight: bold; color: #734F96;">{prob_win:.1f}%</div>
+                    <div class="table-metric">
+                        <div class="table-metric-label">Win League</div>
+                        <div class="table-metric-value" style="color: #734F96;">{prob_win:.1f}%</div>
                     </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 0.9em; color: #000000;">Top 4</div>
-                        <div style="font-size: 1.5em; font-weight: bold; color: #4CAF50;">{prob_top4:.1f}%</div>
+                    <div class="table-metric">
+                        <div class="table-metric-label">Top 4</div>
+                        <div class="table-metric-value" style="color: #4CAF50;">{prob_top4:.1f}%</div>
                     </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 0.9em; color: #000000;">Relegation</div>
-                        <div style="font-size: 1.5em; font-weight: bold; color: #f44336;">{prob_relegation:.1f}%</div>
+                    <div class="table-metric">
+                        <div class="table-metric-label">Relegation</div>
+                        <div class="table-metric-value" style="color: #f44336;">{prob_relegation:.1f}%</div>
                     </div>
                 </div>
             </div>
