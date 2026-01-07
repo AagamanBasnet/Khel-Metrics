@@ -131,6 +131,54 @@ st.markdown("""
     .pos-2-4 { background: #4CAF50; }
     .pos-relegation { background: #f44336; }
     .pos-other { background: #9E9E9E; }
+            
+    .desktop-view {
+        display: flex !important;
+    }
+    
+    .mobile-view {
+        display: none !important;
+    }
+    
+    /* Mobile-specific styles for table */
+    @media only screen and (max-width: 768px) {
+        .desktop-view {
+            display: none !important;
+        }
+        
+        .mobile-view {
+            display: block !important;
+        }
+        
+        /* Smaller team logos on mobile */
+        img[width="50"] {
+            width: 25px !important;
+            height: 25px !important;
+            margin-right: 8px !important;
+        }
+        
+        /* More compact cards on mobile */
+        .metric-card {
+            padding: 10px !important;
+            margin: 3px 0 !important;
+        }
+    }
+    
+    /* Extra small phones */
+    @media only screen and (max-width: 480px) {
+        img[width="50"] {
+            width: 20px !important;
+            height: 20px !important;
+        }
+        
+        .pos-badge {
+            width: 25px !important;
+            height: 25px !important;
+            line-height: 25px !important;
+            font-size: 0.85em !important;
+        }
+    }
+    
 </style>
 """, unsafe_allow_html=True)
 
