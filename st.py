@@ -1173,13 +1173,13 @@ def main():
         with st.expander("☰ Menu"):
             page = st.radio(
                 "Navigate",
-                [" Match Prediction", " Season Simulation"],
+                [" Match Prediction", " Season Simulation","Future Matches"],
                 label_visibility="collapsed"
             )
     else:
         page = st.sidebar.radio(
             "Navigate",
-            [" Match Prediction", " Season Simulation"],
+            [" Match Prediction", " Season Simulation","Future Matches"],
             label_visibility="collapsed",
             key="sidebar_nav_radio"  
         )
@@ -1238,6 +1238,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 
