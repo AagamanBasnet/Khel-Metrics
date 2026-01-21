@@ -691,6 +691,123 @@ def match_prediction_page():
             display_match_history(h2h_matches, f" Head-to-Head (Last 4 Meetings)", home_team, away_team)
             st.markdown("</div>", unsafe_allow_html=True)
 
+
+import time
+
+def render_match_card_animated(row, delay=0.08):
+    placeholder = st.empty()
+
+    with placeholder.container():
+        home = row["home_team_name"]
+        away = row["away_team_name"]
+
+        ph = row["prob_home_win"] * 100
+        pd_ = row["prob_draw"] * 100
+        pa = row["prob_away_win"] * 100
+
+        # Decide favorite
+        if ph > pa and ph > pd_:
+            fav, icon, fav_color = home, "🔥", "#4CAF50"
+        elif pa > ph and pa > pd_:
+            fav, icon, fav_color = away, "🔥", "#2196F3"
+        else:
+            fav, icon, fav_color = "Draw", "⚖️", "#FFC107"
+
+        # Solid white card styling
+        st.markdown(
+            """
+            <div style="
+                background-color:white;
+                border-radius:12px;
+                padding:16px;
+                margin-bottom:20px;
+                box-shadow:0 4px 10px rgba(0,0,0,0.1);
+                text-align:center;
+                color:#2c3e50;
+            ">
+            """,
+            unsafe_allow_html=True
+        )
+
+        # Top row
+        col1, col2, col3 = st.columns([4, 2, 4])
+        with col1:
+            st.image(get_team_logo_url(home), width=48)
+            st.markdown(f"<span style='font-weight:bold; font-size:1.1em;'>{home}</span>", unsafe_allow_html=True)
+        with col2:
+            st.markdown("<span style='font-size:1.4em; font-weight:bold;'>VS</span>", unsafe_allow_html=True)
+        with col3:
+            st.image(get_team_logo_url(away), width=48)
+            st.markdown(f"<span style='font-weight:bold; font-size:1.1em;'>{away}</span>", unsafe_allow_html=True)
+
+        # Date
+        st.markdown(
+            f"<div style='margin:8px 0; color:#666; font-size:0.9em;'>{row['match_date'].strftime('%d %b %Y')}</div>",
+            unsafe_allow_html=True
+        )
+
+        # Probabilities with colored boxes
+        prob_cols = st.columns(3)
+        prob_data = [(home, ph, "#4CAF50"), ("Draw", pd_, "#FFC107"), (away, pa, "#2196F3")]
+        for col, (label, val, color) in zip(prob_cols, prob_data):
+            with col:
+                st.markdown(
+                    f"""
+                    <div style="background:{color}; border-radius:8px; padding:8px; color:white; font-weight:bold;">
+                        {val:.1f}%<br><small>{label}</small>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+        # Most likely outcome
+        st.markdown(
+            f"""
+            <div style="margin-top:12px;">
+                <span style="background:{fav_color}; color:black; padding:6px 12px;
+                            border-radius:20px; font-weight:bold;">
+                    {icon} Most Likely: {fav}
+                </span>
+            </div>
+            </div> <!-- close card -->
+            """,
+            unsafe_allow_html=True
+        )
+
+    time.sleep(delay)
+
+
+def future_matches_page():
+    st.title("⚽ FUTURE FIXTURES")
+    st.caption("Premier League – Predicted Outcomes")
+
+    simulated_matches, _, _ = load_data()
+    if simulated_matches is None:
+        st.error("Could not load future match data.")
+        return
+
+    simulated_matches["match_date"] = pd.to_datetime(simulated_matches["match_date"])
+    today = pd.Timestamp.today().normalize()
+
+    future_matches = (
+        simulated_matches[simulated_matches["match_date"] >= today]
+        .sort_values("match_date")
+    )
+
+    if future_matches.empty:
+        st.info("No future matches available.")
+        return
+
+    CARDS_PER_ROW = 1  # fewer per row for bigger cards
+
+    for i in range(0, len(future_matches), CARDS_PER_ROW):
+        cols = st.columns(CARDS_PER_ROW)
+        for col, (_, row) in zip(cols, future_matches.iloc[i:i+CARDS_PER_ROW].iterrows()):
+            with col:
+                render_match_card_animated(row)
+        st.markdown("")  # spacing between rows
+
+
 def season_simulation_page():
     """Season simulation table page"""
     st.markdown('<div class="main-header"> SEASON SIMULATION</div>', unsafe_allow_html=True)
@@ -1102,16 +1219,18 @@ def main():
     # Page routing
     if page == " Match Prediction":
         match_prediction_page()
-    else:
+    elif page == " Season Simulation":
         season_simulation_page()
+    else:
+        future_matches_page()
     
     if st.session_state.is_mobile:
         with st.expander("☰ Menu"):
-            page = st.radio("Navigate", [" Match Prediction", " Season Simulation"])
+            page = st.radio("Navigate", [" Match Prediction", " Season Simulation","Future Matches"])
     else:
         page = st.sidebar.radio(
             "Navigate",
-            [" Match Prediction", " Season Simulation"],
+            [" Match Prediction", " Season Simulation","Future Matches"],
             label_visibility="collapsed"
         )
 
@@ -1119,5 +1238,6 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
