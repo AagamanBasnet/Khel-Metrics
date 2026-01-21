@@ -806,7 +806,8 @@ def future_matches_page():
             with col:
                 render_match_card_animated(row)
         st.markdown("")  # spacing between rows
-
+def get_team_logo_url(team):
+    return TEAM_LOGOS.get(team)
 
 def season_simulation_page():
     """Season simulation table page"""
@@ -1238,6 +1239,7 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
 
