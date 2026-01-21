@@ -1219,7 +1219,7 @@ def main():
     # Page routing
     if page == " Match Prediction":
         match_prediction_page()
-    elif:
+    elif page == " Season Simulation":
         season_simulation_page()
     else:
         future_matches_page()
@@ -1238,3 +1238,4 @@ def main():
 if __name__ == "__main__":
 
     main()
+
